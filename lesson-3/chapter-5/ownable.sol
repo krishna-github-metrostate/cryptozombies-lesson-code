@@ -1,45 +1,75 @@
-pragma solidity ^0.4.25;
+pragma solidity >=0.5.0 <0.6.0;
 
-import "./zombiefactory.sol";
+/**
+* @title Ownable
+* @dev The Ownable contract has an owner address, and provides basic authorization control
+* functions, this simplifies the implementation of "user permissions".
+*/
+contract Ownable {
+  address private _owner;
 
-contract KittyInterface {
-  function getKitty(uint256 _id) external view returns (
-    bool isGestating,
-    bool isReady,
-    uint256 cooldownIndex,
-    uint256 nextActionAt,
-    uint256 siringWithId,
-    uint256 birthTime,
-    uint256 matronId,
-    uint256 sireId,
-    uint256 generation,
-    uint256 genes
+  event OwnershipTransferred(
+    address indexed previousOwner,
+    address indexed newOwner
   );
-}
 
-contract ZombieFeeding is ZombieFactory {
-
-  KittyInterface kittyContract;
-
-  function setKittyContractAddress(address _address) external onlyOwner {
-    kittyContract = KittyInterface(_address);
+  /**
+  * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+  * account.
+  */
+  constructor() internal {
+    _owner = msg.sender;
+    emit OwnershipTransferred(address(0), _owner);
   }
 
-  function feedAndMultiply(uint _zombieId, uint _targetDna, string _species) public {
-    require(msg.sender == zombieToOwner[_zombieId]);
-    Zombie storage myZombie = zombies[_zombieId];
-    _targetDna = _targetDna % dnaModulus;
-    uint newDna = (myZombie.dna + _targetDna) / 2;
-    if (keccak256(abi.encodePacked(_species)) == keccak256(abi.encodePacked("kitty"))) {
-      newDna = newDna - newDna % 100 + 99;
-    }
-    _createZombie("NoName", newDna);
+  /**
+  * @return the address of the owner.
+  */
+  function owner() public view returns(address) {
+    return _owner;
   }
 
-  function feedOnKitty(uint _zombieId, uint _kittyId) public {
-    uint kittyDna;
-    (,,,,,,,,,kittyDna) = kittyContract.getKitty(_kittyId);
-    feedAndMultiply(_zombieId, kittyDna, "kitty");
+  /**
+  * @dev Throws if called by any account other than the owner.
+  */
+  modifier onlyOwner() {
+    require(isOwner());
+    _;
   }
 
+  /**
+  * @return true if `msg.sender` is the owner of the contract.
+  */
+  function isOwner() public view returns(bool) {
+    return msg.sender == _owner;
+  }
+
+  /**
+  * @dev Allows the current owner to relinquish control of the contract.
+  * @notice Renouncing to ownership will leave the contract without an owner.
+  * It will not be possible to call the functions with the `onlyOwner`
+  * modifier anymore.
+  */
+  function renounceOwnership() public onlyOwner {
+    emit OwnershipTransferred(_owner, address(0));
+    _owner = address(0);
+  }
+
+  /**
+  * @dev Allows the current owner to transfer control of the contract to a newOwner.
+  * @param newOwner The address to transfer ownership to.
+  */
+  function transferOwnership(address newOwner) public onlyOwner {
+    _transferOwnership(newOwner);
+  }
+
+  /**
+  * @dev Transfers control of the contract to a newOwner.
+  * @param newOwner The address to transfer ownership to.
+  */
+  function _transferOwnership(address newOwner) internal {
+    require(newOwner != address(0));
+    emit OwnershipTransferred(_owner, newOwner);
+    _owner = newOwner;
+  }
 }
