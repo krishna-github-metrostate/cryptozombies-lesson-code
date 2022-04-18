@@ -1,58 +1,48 @@
 pragma solidity >=0.5.0 <0.6.0;
 
-import "./zombiefactory.sol";
+import "./zombiefeeding.sol";
 
-contract KittyInterface {
-  function getKitty(uint256 _id) external view returns (
-    bool isGestating,
-    bool isReady,
-    uint256 cooldownIndex,
-    uint256 nextActionAt,
-    uint256 siringWithId,
-    uint256 birthTime,
-    uint256 matronId,
-    uint256 sireId,
-    uint256 generation,
-    uint256 genes
-  );
-}
+contract ZombieHelper is ZombieFeeding {
 
-contract ZombieFeeding is ZombieFactory {
+  uint levelUpFee = 0.001 ether;
 
-  KittyInterface kittyContract;
-
-  modifier onlyOwnerOf(uint _zombieId) {
-    require(msg.sender == zombieToOwner[_zombieId]);
+  modifier aboveLevel(uint _level, uint _zombieId) {
+    require(zombies[_zombieId].level >= _level);
     _;
   }
 
-  function setKittyContractAddress(address _address) external onlyOwner {
-    kittyContract = KittyInterface(_address);
+  function withdraw() external onlyOwner {
+    address _owner = owner();
+    _owner.transfer(address(this).balance);
   }
 
-  function _triggerCooldown(Zombie storage _zombie) internal {
-    _zombie.readyTime = uint32(now + cooldownTime);
+  function setLevelUpFee(uint _fee) external onlyOwner {
+    levelUpFee = _fee;
   }
 
-  function _isReady(Zombie storage _zombie) internal view returns (bool) {
-      return (_zombie.readyTime <= now);
+  function levelUp(uint _zombieId) external payable {
+    require(msg.value == levelUpFee);
+    zombies[_zombieId].level = zombies[_zombieId].level.add(1);
   }
 
-  function feedAndMultiply(uint _zombieId, uint _targetDna, string memory _species) internal onlyOwnerOf(_zombieId) {
-    Zombie storage myZombie = zombies[_zombieId];
-    require(_isReady(myZombie));
-    _targetDna = _targetDna % dnaModulus;
-    uint newDna = (myZombie.dna + _targetDna) / 2;
-    if (keccak256(abi.encodePacked(_species)) == keccak256(abi.encodePacked("kitty"))) {
-      newDna = newDna - newDna % 100 + 99;
+  function changeName(uint _zombieId, string calldata _newName) external aboveLevel(2, _zombieId) onlyOwnerOf(_zombieId) {
+    zombies[_zombieId].name = _newName;
+  }
+
+  function changeDna(uint _zombieId, uint _newDna) external aboveLevel(20, _zombieId) onlyOwnerOf(_zombieId) {
+    zombies[_zombieId].dna = _newDna;
+  }
+
+  function getZombiesByOwner(address _owner) external view returns(uint[] memory) {
+    uint[] memory result = new uint[](ownerZombieCount[_owner]);
+    uint counter = 0;
+    for (uint i = 0; i < zombies.length; i++) {
+      if (zombieToOwner[i] == _owner) {
+        result[counter] = i;
+        counter++;
+      }
     }
-    _createZombie("NoName", newDna);
-    _triggerCooldown(myZombie);
+    return result;
   }
 
-  function feedOnKitty(uint _zombieId, uint _kittyId) public {
-    uint kittyDna;
-    (,,,,,,,,,kittyDna) = kittyContract.getKitty(_kittyId);
-    feedAndMultiply(_zombieId, kittyDna, "kitty");
-  }
 }
