@@ -1,4 +1,4 @@
-pragma solidity ^0.4.25;
+pragma solidity >=0.5.0 <0.6.0;
 
 import "./zombieattack.sol";
 import "./erc721.sol";
@@ -26,7 +26,7 @@ contract ZombieOwnership is ZombieAttack, ERC721 {
   }
 
   function transferFrom(address _from, address _to, uint256 _tokenId) external payable {
-    require (zombieToOwner[_tokenId] == msg.sender || zombieApprovals [_tokenId] == msg.sender);
+    require (zombieToOwner[_tokenId] == msg.sender || zombieApprovals[_tokenId] == msg.sender);
     _transfer(_from, _to, _tokenId);
   }
 
