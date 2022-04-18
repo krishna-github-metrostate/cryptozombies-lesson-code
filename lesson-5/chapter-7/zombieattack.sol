@@ -1,29 +1,34 @@
 pragma solidity >=0.5.0 <0.6.0;
 
-import "./zombiehelper.sol";
+import "./zombieattack.sol";
+import "./erc721.sol";
 
-contract ZombieAttack is ZombieHelper {
-  uint randNonce = 0;
-  uint attackVictoryProbability = 70;
+contract ZombieOwnership is ZombieAttack, ERC721 {
 
-  function randMod(uint _modulus) internal returns(uint) {
-    randNonce++;
-    return uint(keccak256(abi.encodePacked(now, msg.sender, randNonce))) % _modulus;
+  mapping (uint => address) zombieApprovals;
+
+  function balanceOf(address _owner) external view returns (uint256) {
+    return ownerZombieCount[_owner];
   }
 
-  function attack(uint _zombieId, uint _targetId) external onlyOwnerOf(_zombieId) {
-    Zombie storage myZombie = zombies[_zombieId];
-    Zombie storage enemyZombie = zombies[_targetId];
-    uint rand = randMod(100);
-    if (rand <= attackVictoryProbability) {
-      myZombie.winCount++;
-      myZombie.level++;
-      enemyZombie.lossCount++;
-      feedAndMultiply(_zombieId, enemyZombie.dna, "zombie");
-    } else {
-      myZombie.lossCount++;
-      enemyZombie.winCount++;
-      _triggerCooldown(myZombie);
-    }
+  function ownerOf(uint256 _tokenId) external view returns (address) {
+    return zombieToOwner[_tokenId];
   }
+
+  function _transfer(address _from, address _to, uint256 _tokenId) private {
+    ownerZombieCount[_to]++;
+    ownerZombieCount[_from]--;
+    zombieToOwner[_tokenId] = _to;
+    emit Transfer(_from, _to, _tokenId);
+  }
+
+  function transferFrom(address _from, address _to, uint256 _tokenId) external payable {
+    require (zombieToOwner[_tokenId] == msg.sender || zombieApprovals[_tokenId] == msg.sender);
+    _transfer(_from, _to, _tokenId);
+  }
+
+  function approve(address _approved, uint256 _tokenId) external payable onlyOwnerOf(_tokenId) {
+    zombieApprovals[_tokenId] = _approved;
+  }
+
 }
